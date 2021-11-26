@@ -1,6 +1,6 @@
 package john.com.drrs.endpoint;
 
-import com.drrs.ws.PrimaryImpl;
+import john.com.drrs.ws.PrimaryImpl;
 
 
 import javax.xml.ws.Endpoint;

@@ -1,9 +1,10 @@
 package john.com.drrs.client;
 
-import com.drrs.util.Log;
-import com.drrs.util.Utility;
-import com.drrs.ws.Primary;
-import com.drrs.ws.PrimaryImplService;
+
+import john.com.drrs.util.Log;
+import john.com.drrs.util.Utility;
+import john.com.drrs.ws.Primary;
+import john.com.drrs.ws.PrimaryImplService;
 
 import java.io.File;
 import java.io.IOException;
