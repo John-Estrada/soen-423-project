@@ -20,14 +20,14 @@ public class FrontendImpl implements FrontendInterface {
     int dummyReplicaId;
     ArrayList<ArrayList<AbstractMap.SimpleEntry<Integer, Response>>> responses;
     HashMap<Integer, AbstractMap.SimpleEntry<Long, Response>> timeoutQueue;
-    MockSequencer mockSequencer;
+    // Sequencer UDP port
+    final int sequencerPort = 9000; // Temporary sequencerPort
 
     public FrontendImpl() {
         timeOutMutex = new Semaphore(1);
         dummyReplicaId = 100;    // TODO: 2021-11-25 replace this with real replica id - included in the response?
         responses = new ArrayList<ArrayList<AbstractMap.SimpleEntry<Integer, Response>>>();
         timeoutQueue = new HashMap<Integer, AbstractMap.SimpleEntry<Long, Response>>();
-        mockSequencer = new MockSequencer();    // TODO: 2021-11-27 replace this with the real sequencer
 
         Udp.listen(Constants.FRONTEND_PORT, (response) -> {
             return handleRequest((Response) response);
@@ -42,7 +42,7 @@ public class FrontendImpl implements FrontendInterface {
             e.printStackTrace();
         }
         //if the response id is not already in the queue, add it with value null (to indicate that the response is not ready)
-        // TODO: 2021-11-27 move this to handling reply from sequencer after request forwarded
+        // TODO: 2021-11-27 move this to handling reply from main.java.sequencer after request forwarded
         if (!timeoutQueue.containsKey(response.getId())) {
             timeoutQueue.put(response.getId(), new AbstractMap.SimpleEntry<Long, Response>(System.currentTimeMillis(), null));
         }
@@ -195,12 +195,12 @@ public class FrontendImpl implements FrontendInterface {
                 Response r = Udp.send(i, new Request(999, new GetAvailableTimeslots("liveness check")));
             } catch (Exception e) {
                 System.out.println("Replica " + i + " has failed - informing primary RM");
-                // TODO: 2021-11-28 change this to inform sequencer instead of primary rm
+                // TODO: 2021-11-28 change this to inform main.java.sequencer instead of primary rm
                 replicaInfoObjects[i] = new ReplicaInfo(i, Constants.RM_PORTS[i], new Thread());
             }
         }
 
-        // TODO: 2021-11-29 should inform sequencer instead of primary rm 
+        // TODO: 2021-11-29 should inform main.java.sequencer instead of primary rm
         Udp.send(Constants.RM_PORTS[Constants.PRIMARY_RM_ID], new Request(1000, new ReplicaError(replicaInfoObjects)));
 
         timeoutQueue.remove(key);
@@ -214,8 +214,7 @@ public class FrontendImpl implements FrontendInterface {
 
     @Override
     public boolean createRoom(String adminId, int roomNumber, String date, String[] timeSlots) {
-        int requestId = mockSequencer.createRoom(adminId, roomNumber, date, timeSlots); // TODO: 2021-11-27 replace with real sequencer
-
+        int requestId = Udp.send(sequencerPort, new CreateRoom(adminId, roomNumber, date, timeSlots));
         // debug
         Udp.send(Constants.DEBUG_PORT, new Response(requestId, String.format("Received createRoom request with parameters: adminId: %s, roomNumber: %s, date: %s, timeSlots: %s", adminId, roomNumber, date, timeSlots)));
 
@@ -234,7 +233,7 @@ public class FrontendImpl implements FrontendInterface {
 
     @Override
     public boolean deleteRoom(String adminId, int roomNumber, String date, String[] timeSlots) {
-        int requestId = mockSequencer.deleteRoom(adminId, roomNumber, date, timeSlots); // TODO: 2021-11-27 replace with real sequencer
+        int requestId = Udp.send(sequencerPort, new DeleteRoom(adminId, roomNumber, date, timeSlots)); // TODO: 2021-11-27 replace with real main.java.sequencer
 
         MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
 
@@ -247,7 +246,7 @@ public class FrontendImpl implements FrontendInterface {
 
     @Override
     public Booking bookRoom(String studentId, String campus, int roomNumber, String date, String[] timeSlots) {
-        int requestId = mockSequencer.bookRoom(studentId, campus, roomNumber, date, timeSlots); // TODO: 2021-11-27 replace with real sequencer
+        int requestId = Udp.send(sequencerPort, new BookRoom(studentId, campus, roomNumber, date, timeSlots)); // TODO: 2021-11-27 replace with real main.java.sequencer
 
         MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
 
@@ -260,7 +259,7 @@ public class FrontendImpl implements FrontendInterface {
 
     @Override
     public boolean cancelBooking(String studentId, String bookingId) {
-        int requestId = mockSequencer.cancelBooking(studentId, bookingId);
+        int requestId = Udp.send(sequencerPort, new CancelBooking(studentId, bookingId));
 
         MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
 
@@ -273,7 +272,7 @@ public class FrontendImpl implements FrontendInterface {
 
     @Override
     public String getAvailableTimeSlots(String date) {
-        int requestId = mockSequencer.getAvailableTimeSlots(date);
+        int requestId = Udp.send(sequencerPort, getAvailableTimeSlots(date));
 
         MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
 
