@@ -1,15 +1,28 @@
 package util
 
 import java.io.*
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetAddress
-import java.net.SocketTimeoutException
+import java.net.*
 import kotlin.concurrent.thread
+import kotlin.math.floor
 
 
 class Udp {
     companion object {
+
+        @JvmStatic
+        /** Generates a new ephemeral port between the range 49152–65535 and ensures the port is not taken. */
+        public fun randPort(): Int {
+            var port: Int;
+            while (true) {
+                port = (49152 + floor(Math.random() * (65535 - 49152))).toInt()
+                try {
+                    ServerSocket(port).close();
+                    return port;
+                } catch (_: IOException) {
+                    continue;
+                }
+            }
+        }
 
         private fun toByteArray(obj: Serializable): ByteArray {
             val bos = ByteArrayOutputStream()
@@ -80,7 +93,6 @@ class Udp {
                         socket.close();
                         break;
                     } else {
-                        Thread.yield();
                         continue;
                     }
                 }

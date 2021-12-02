@@ -70,6 +70,7 @@ public class FrontendImpl implements FrontendInterface {
 
         timeOutMutex.release();
         return response;
+
     }
 
     //called when all replicas have given a response
@@ -195,8 +196,8 @@ public class FrontendImpl implements FrontendInterface {
                 Response r = Udp.send(i, new Request(999, new GetAvailableTimeslots("liveness check")));
             } catch (Exception e) {
                 System.out.println("Replica " + i + " has failed - informing primary RM");
-                // TODO: 2021-11-28 change this to inform main.java.sequencer instead of primary rm
-                replicaInfoObjects[i] = new ReplicaInfo(i, Constants.RM_PORTS[i], new Thread());
+                // TODO: 2021-11-28 change this to inform sequencer instead of primary rm
+                replicaInfoObjects[i] = new ReplicaInfo(Constants.RM_PORTS[i], 0);
             }
         }
 
@@ -219,14 +220,14 @@ public class FrontendImpl implements FrontendInterface {
         Udp.send(Constants.DEBUG_PORT, new Response(requestId, String.format("Received createRoom request with parameters: adminId: %s, roomNumber: %s, date: %s, timeSlots: %s", adminId, roomNumber, date, timeSlots)));
 
         // debug
-        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS+1);
+        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS + 1);
 
         Response r = waitForTimeoutQueue(requestId);
 
         // debug
         Udp.send(Constants.DEBUG_PORT, r);
 
-        if (r!=null) return true;
+        if (r != null) return true;
 
         return false;
     }
@@ -239,7 +240,7 @@ public class FrontendImpl implements FrontendInterface {
 
         Response r = waitForTimeoutQueue(requestId);
 
-        if (r!=null) return true;
+        if (r != null) return true;
 
         return false;
     }
@@ -265,7 +266,7 @@ public class FrontendImpl implements FrontendInterface {
 
         Response r = waitForTimeoutQueue(requestId);
 
-        if (r!=null) return true;
+        if (r != null) return true;
 
         return false;
     }

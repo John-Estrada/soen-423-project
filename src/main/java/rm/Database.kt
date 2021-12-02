@@ -11,7 +11,7 @@ class Database : Serializable {
     // ================================
     // Admin methods
     // ================================
-    fun createRoom(args: CreateRoom): Boolean {
+    fun createRoom(args: CreateRoom): String {
         val (adminId, roomNumber, date, timeslots) = args
 
         for (timeslot in timeslots) {
@@ -24,10 +24,10 @@ class Database : Serializable {
             rooms.add(room)
         }
 
-        return true;
+        return "Rooms created";
     }
 
-    fun deleteRoom(args: DeleteRoom): Boolean {
+    fun deleteRoom(args: DeleteRoom): String {
         val (adminId, roomNumber, date, timeslots) = args
 
         for (timeslot in timeslots) {
@@ -41,22 +41,28 @@ class Database : Serializable {
             bookings.removeIf { booking -> booking.room == room }
         }
 
-        return true
+        return "Rooms deleted";
     }
 
     // ================================
     // Student methods
     // ================================
-    fun bookRoom(args: BookRoom): Boolean {
+    fun bookRoom(args: BookRoom): String {
         val (studentId, campus, roomNumber, date, timeslots) = args;
 
-        // TODO: Generate new booking IDs
-        val bookingId = "10000";
+        var id = 10000;
+        for (booking in bookings) {
+            val otherBookingId = booking.bookingId.substring(2).toInt();
+            if (otherBookingId >= id) {
+                id = otherBookingId + 1;
+            }
+        }
+        val bookingId = "RR$id"
 
         // TODO: Count number of bookings PER WEEK
         assert(
-                bookings.filter { booking -> booking.studentId == studentId }.size + timeslots.size <= 3,
-                "Student cannot make that many bookings."
+            bookings.filter { booking -> booking.studentId == studentId }.size + timeslots.size <= 3,
+            "Student cannot make that many bookings."
         )
 
         for (timeslot in timeslots) {
@@ -71,28 +77,28 @@ class Database : Serializable {
             bookings.add(booking)
         }
 
-        return true
+        return bookingId;
     }
 
-    fun cancelBooking(args: CancelBooking): Boolean {
+    fun cancelBooking(args: CancelBooking): String {
         val (studentId, bookingId) = args
 
         assert(bookings.find { booking -> booking.bookingId == bookingId } != null,
-                "Booking $bookingId does not exist.")
+            "Booking $bookingId does not exist.")
         assert(
-                bookings.find { booking -> booking.bookingId == bookingId }!!.studentId == studentId,
-                "Booking $bookingId does not belong to student $studentId."
+            bookings.find { booking -> booking.bookingId == bookingId }!!.studentId == studentId,
+            "Booking $bookingId does not belong to student $studentId."
         )
 
         bookings.removeIf { booking -> booking.bookingId == bookingId }
 
-        return true;
+        return "Booking cancelled";
     }
 
-    fun getAvailableTimeslots(args: GetAvailableTimeslots): Int {
+    fun getAvailableTimeslots(args: GetAvailableTimeslots): String {
         val (date) = args
         val totalRoomsAtDate = rooms.filter { room -> room.date == date }.size
         val bookedRoomsAtDate = bookings.filter { booking -> booking.room.date == date }.size
-        return totalRoomsAtDate - bookedRoomsAtDate
+        return "${totalRoomsAtDate - bookedRoomsAtDate}";
     }
 }

@@ -33,11 +33,10 @@ and an ID.
 import rm.ReplicaManager;
 
 // Starting 4 RMs
-int port = 9000;
-int id = 0;
+int port = Udp.randPort();
 Thread[] threads = new Thread[4];
 while (id < 4) {
-    threads[id] = ReplicaManager.startProcess(port++, id++);
+    threads[id] = ReplicaManager.startProcess(port++);
 }
 ```
 
