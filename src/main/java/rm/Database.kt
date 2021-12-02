@@ -15,6 +15,7 @@ class Database : Serializable {
         val (adminId, roomNumber, date, timeslots) = args
 
         for (timeslot in timeslots) {
+            println("creating room")
             val room = RoomRecord(roomNumber, date, timeslot)
             assert(!rooms.contains(room), "Room already exists.")
         }

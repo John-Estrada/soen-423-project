@@ -1,6 +1,0 @@
-TimeStamp: 1635971343685
-Request Type: CreateRoom
-Request Parameters: RoomNumber: 123, Date: 1990-1-1, TimeSlots: [1 2 3 4 5]
-Success Status: true
-Server Response: true
-

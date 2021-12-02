@@ -28,11 +28,6 @@ public class StudentClient {
 
         String message = sb.toString();
 
-        Udp.listen(Constants.DEBUG_PORT, reply -> {
-            System.out.println(reply);
-            return null;
-        });
-
         // JAX-WS setup for interacting with the FrontEnd
         URL wsdlUrl = new URL(Constants.FRONTEND_WEBSERVICE_URL + "?wsdl");
         QName qname = new QName(Constants.NAMESPACE_URI, Constants.SERVICE);
@@ -53,26 +48,40 @@ public class StudentClient {
                 case "1":
                     request = clientUtility.buildRequest("bookRoom", id, sc);
                     booking = frontend.bookRoom(id, request.getCampus(), request.getRoomNumber(), request.getDate(), request.getTimeSlots());
-                    System.out.println(String.format("Your booking Id is: %s", booking.getBookingId()));
+
+                    if (booking.getBookingId().equals("")) {
+                        System.out.println("The room could not be booked.");
+                    } else {
+                        System.out.println(String.format("Your booking Id is: %s", booking.getBookingId()));
+                    }
+
                     break;
 
                 case "2":
                     request = clientUtility.buildRequest("cancelBooking", id, sc);
                     result = frontend.cancelBooking(id, request.getBookingId());
-                    System.out.println(result);
+
+                    if (result) {
+                        System.out.println("Your booking was successfully cancelled");
+                    } else {
+                        System.out.println("The booking could not be cancelled.");
+                    }
+
                     break;
                 case "3":
                     request = clientUtility.buildRequest("getAvailableTimeSlots", id, sc);
                     output = frontend.getAvailableTimeSlots(request.getDate());
-                    System.out.println(output);
+
+                    System.out.println(String.format("There are %s time slots available", output));
+
                     break;
 
                 case "4":
                     go = false;
                     System.out.println("Quitting");
+
                     break;
             }
-            System.out.println("Request done");
         }
     }
 }

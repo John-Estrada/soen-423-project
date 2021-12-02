@@ -1,15 +1,13 @@
 package frontend;
 
-import java.util.AbstractMap;
-
-import mock.MockRM;
-import mock.MockSequencer;
+import main.java.sequencer.Sequencer;
 import rm.*;
 import util.Constants;
 import util.Udp;
 
 import javax.jws.WebService;
 import java.io.Serializable;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.Semaphore;
@@ -20,14 +18,15 @@ public class FrontendImpl implements FrontendInterface {
     int dummyReplicaId;
     ArrayList<ArrayList<AbstractMap.SimpleEntry<Integer, Response>>> responses;
     HashMap<Integer, AbstractMap.SimpleEntry<Long, Response>> timeoutQueue;
-    // Sequencer UDP port
-    final int sequencerPort = 9000; // Temporary sequencerPort
+    Sequencer sequencer;
 
     public FrontendImpl() {
         timeOutMutex = new Semaphore(1);
-        dummyReplicaId = 100;    // TODO: 2021-11-25 replace this with real replica id - included in the response?
+        dummyReplicaId = 100;
         responses = new ArrayList<ArrayList<AbstractMap.SimpleEntry<Integer, Response>>>();
         timeoutQueue = new HashMap<Integer, AbstractMap.SimpleEntry<Long, Response>>();
+        ReplicaManager.startProcesses();
+        sequencer = new Sequencer(Constants.SEQUENCER_PORT);
 
         Udp.listen(Constants.FRONTEND_PORT, (response) -> {
             return handleRequest((Response) response);
@@ -42,7 +41,6 @@ public class FrontendImpl implements FrontendInterface {
             e.printStackTrace();
         }
         //if the response id is not already in the queue, add it with value null (to indicate that the response is not ready)
-        // TODO: 2021-11-27 move this to handling reply from main.java.sequencer after request forwarded
         if (!timeoutQueue.containsKey(response.getId())) {
             timeoutQueue.put(response.getId(), new AbstractMap.SimpleEntry<Long, Response>(System.currentTimeMillis(), null));
         }
@@ -59,7 +57,6 @@ public class FrontendImpl implements FrontendInterface {
             responses.add(response.getId(), new ArrayList<AbstractMap.SimpleEntry<Integer, Response>>());
         }
 
-        // TODO: 2021-11-25 use a real replica id here
         //add the new pair to this index's list of responses
         responses.get(response.getId()).add(new AbstractMap.SimpleEntry<>(dummyReplicaId++, response));
 
@@ -70,13 +67,11 @@ public class FrontendImpl implements FrontendInterface {
 
         timeOutMutex.release();
         return response;
-
     }
 
     //called when all replicas have given a response
     public Response getMajority(ArrayList<AbstractMap.SimpleEntry<Integer, Response>> allResponses) {
         //create an array with the number of responses equal to the response at this index
-        // TODO: 2021-11-25 probably change this to a hashmap with <Response, count>, but hashCode() and equals() not working after deserialization
         int[] counts = new int[allResponses.size()];
 
         //count the number of equal responses and add them to the array
@@ -101,41 +96,6 @@ public class FrontendImpl implements FrontendInterface {
         }
 
         return allResponses.get(chosenIndex).getValue();
-    }
-
-    //iterate over timeout queue - when response is no longer null, call handleResponseReadyForClient. if response is still null when timeout exceeded, call handleTimeout
-    public void watchTimeoutQueue() {
-        while (true) {
-            if (timeoutQueue.size() == 0) {
-                Thread.yield();
-            }
-
-            try {
-                timeOutMutex.acquire();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-
-            for (Integer key : timeoutQueue.keySet()) {
-                if (System.currentTimeMillis() - timeoutQueue.get(key).getKey() > Constants.TIMEOUT) {
-                    handleTimeout(key);
-                }
-
-                //needed to handle null pointer exceptions
-                Response value = null;
-                try {
-                    value = timeoutQueue.get(key).getValue();
-                } catch (Exception e) {
-                    System.out.println("Value is null - handle timeout");
-                }
-                if (value != null) {
-                    handleResponseReadyForClient(key);
-                }
-            }
-
-            timeOutMutex.release();
-        }
     }
 
     //second method for iterating over the queue
@@ -196,96 +156,83 @@ public class FrontendImpl implements FrontendInterface {
                 Response r = Udp.send(i, new Request(999, new GetAvailableTimeslots("liveness check")));
             } catch (Exception e) {
                 System.out.println("Replica " + i + " has failed - informing primary RM");
-                // TODO: 2021-11-28 change this to inform sequencer instead of primary rm
                 replicaInfoObjects[i] = new ReplicaInfo(Constants.RM_PORTS[i], 0);
             }
         }
 
-        // TODO: 2021-11-29 should inform main.java.sequencer instead of primary rm
         Udp.send(Constants.RM_PORTS[Constants.PRIMARY_RM_ID], new Request(1000, new ReplicaError(replicaInfoObjects)));
 
         timeoutQueue.remove(key);
     }
 
     @Override
-    public String test(String str) {
-        Udp.send(Constants.DEBUG_PORT, new Response(1, "Test data"));
-        return "Replay from the impl : " + str;
-    }
-
-    @Override
     public boolean createRoom(String adminId, int roomNumber, String date, String[] timeSlots) {
-        int requestId = Udp.send(sequencerPort, new CreateRoom(adminId, roomNumber, date, timeSlots));
-        // debug
-        Udp.send(Constants.DEBUG_PORT, new Response(requestId, String.format("Received createRoom request with parameters: adminId: %s, roomNumber: %s, date: %s, timeSlots: %s", adminId, roomNumber, date, timeSlots)));
+        String successMessage = "Rooms created";
+        String failMessage = "Room already exists.";
 
-        // debug
-        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS + 1);
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new CreateRoom(adminId, roomNumber, date, timeSlots));
 
         Response r = waitForTimeoutQueue(requestId);
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
 
-        // debug
-        Udp.send(Constants.DEBUG_PORT, r);
-
-        if (r != null) return true;
-
-        return false;
+        return responseString.equals(successMessage);
     }
 
     @Override
     public boolean deleteRoom(String adminId, int roomNumber, String date, String[] timeSlots) {
-        int requestId = Udp.send(sequencerPort, new DeleteRoom(adminId, roomNumber, date, timeSlots)); // TODO: 2021-11-27 replace with real main.java.sequencer
+        String successMessage = "Rooms deleted";
 
-        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new DeleteRoom(adminId, roomNumber, date, timeSlots));
 
         Response r = waitForTimeoutQueue(requestId);
 
-        if (r != null) return true;
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
 
-        return false;
+        return responseString.equals(successMessage);
     }
 
     @Override
     public Booking bookRoom(String studentId, String campus, int roomNumber, String date, String[] timeSlots) {
-        int requestId = Udp.send(sequencerPort, new BookRoom(studentId, campus, roomNumber, date, timeSlots)); // TODO: 2021-11-27 replace with real main.java.sequencer
+        String failMessage = "Room to book does not exist.";
 
-        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new BookRoom(studentId, campus, roomNumber, date, timeSlots));
 
         Response r = waitForTimeoutQueue(requestId);
 
-        // TODO: 2021-11-29 fix response here (wrong booking class?)
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
 
-        return null;
+        if (!responseString.equals(failMessage)) return new Booking(new RoomRecord(), "", responseString);
+
+        return new Booking();
     }
 
     @Override
     public boolean cancelBooking(String studentId, String bookingId) {
-        int requestId = Udp.send(sequencerPort, new CancelBooking(studentId, bookingId));
+        String successMessage = "Booking cancelled";
 
-        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new CancelBooking(studentId, bookingId));
+
 
         Response r = waitForTimeoutQueue(requestId);
 
-        if (r != null) return true;
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
 
-        return false;
+        return responseString.equals(successMessage);
     }
 
     @Override
     public String getAvailableTimeSlots(String date) {
-        int requestId = Udp.send(sequencerPort, getAvailableTimeSlots(date));
-
-        MockRM.sendMockResponse(requestId, Constants.NUMBER_OF_REPLICAS);
-
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new GetAvailableTimeslots(date));
         Response r = waitForTimeoutQueue(requestId);
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
 
         if (r != null) return (String) r.getData();
 
         return null;
-    }
-
-    //print method for debugging - easier removal with ctrl+f
-    private void d(String s) {
-        System.out.println(s);
     }
 }

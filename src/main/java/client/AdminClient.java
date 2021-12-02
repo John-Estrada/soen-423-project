@@ -26,11 +26,6 @@ public class AdminClient {
 
         String message = sb.toString();
 
-        Udp.listen(Constants.DEBUG_PORT, reply -> {
-            System.out.println(reply);
-            return null;
-        });
-
         // JAX-WS setup for interacting with the FrontEnd
         URL wsdlUrl = new URL(Constants.FRONTEND_WEBSERVICE_URL + "?wsdl");
         QName qname = new QName(Constants.NAMESPACE_URI, Constants.SERVICE);
@@ -49,13 +44,25 @@ public class AdminClient {
                 case "1":
                     request = clientUtility.buildRequest("createRoom", id, sc);
                     result = frontend.createRoom(request.getId(), request.getRoomNumber(), request.getDate(), request.getTimeSlots());
-                    System.out.println(result);
+
+                    if (result) {
+                        System.out.println("Room Record successfully created");
+                    } else {
+                        System.out.println("This room record could not be created");
+                    }
+
                     break;
 
                 case "2":
                     request = clientUtility.buildRequest("deleteRoom", id, sc);
                     result = frontend.deleteRoom(request.getId(), request.getRoomNumber(), request.getDate(), request.getTimeSlots());
-                    System.out.println(result);
+
+                    if (result) {
+                        System.out.println("Room successfully deleted");
+                    } else {
+                        System.out.println("This room could not be deleted");
+                    }
+
                     break;
 
                 case "3":
@@ -63,7 +70,6 @@ public class AdminClient {
                     System.out.println("Quitting");
                     break;
             }
-            System.out.println("Request done");
         }
     }
 }

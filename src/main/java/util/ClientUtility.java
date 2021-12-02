@@ -22,7 +22,7 @@ public class ClientUtility {
                 System.out.println("Enter a date\n");   // TODO: 2021-11-27 specify date format
                 date = sc.nextLine();
 
-                System.out.println("Enter the time slots you would like to book\n");
+                System.out.println("Enter the time slots\n");
                 timeSlots = sc.nextLine().split(" ");
 
                 request = new Request().withId(id).withRoomNumber(roomNumber).withDate(date).withTimeSlots(timeSlots);
@@ -40,7 +40,7 @@ public class ClientUtility {
                 System.out.println("Enter a date\n");   // TODO: 2021-11-27 specify date format
                 date = sc.nextLine();
 
-                System.out.println("Enter the time slots you would like to book\n");
+                System.out.println("Enter the time slots\n");
                 timeSlots = sc.nextLine().split(" ");
 
                 request = new Request().withId(id).withRoomNumber(roomNumber).withDate(date).withTimeSlots(timeSlots).withCampus(campus);
