@@ -235,4 +235,66 @@ public class FrontendImpl implements FrontendInterface {
 
         return null;
     }
+
+    @Override
+    public String NonPrimaryRMCrash(String date) {
+
+
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new GetAvailableTimeslots(date));
+        Response r = waitForTimeoutQueue(requestId);
+        ReplicaManager.stopRandomProcess();  //make a rm crash
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
+
+        if (r != null) return (String) r.getData();
+
+        return null;
+    }
+
+    @Override
+    public String twoRMsCrash(String date) {
+
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new GetAvailableTimeslots(date));
+        Response r = waitForTimeoutQueue(requestId);
+        ReplicaManager.stopRandomProcess();
+
+        ReplicaManager.stopRandomProcess();
+
+        //ReplicaManager.corruptRandomProcess();
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
+
+        if (r != null) return (String) r.getData();
+
+        return null;
+    }
+
+    @Override
+    public String Byzantine(String date) {
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new GetAvailableTimeslots(date));
+        Response r = waitForTimeoutQueue(requestId);
+        ReplicaManager.corruptRandomProcess();    //make a rm have invalid data
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
+
+        if (r != null) return (String) r.getData();
+
+        return null;
+    }
+
+    @Override
+    public String ByzantineAndRMCrash(String date) {
+        int requestId = Udp.send(Constants.SEQUENCER_PORT, new GetAvailableTimeslots(date));
+        Response r = waitForTimeoutQueue(requestId);
+        ReplicaManager.corruptRandomProcess();    //make a rm have invalid data
+        ReplicaManager.stopRandomProcess();     //make a rm crash
+        String responseString = (String) r.getData();
+        System.out.println(String.format("Response: %s", responseString));
+
+        if (r != null) return (String) r.getData();
+
+        return null;
+    }
+
+
 }

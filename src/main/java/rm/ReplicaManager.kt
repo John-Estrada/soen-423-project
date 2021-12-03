@@ -56,11 +56,15 @@ class ReplicaManager(private val port: Int, private var db: Database = Database(
 
         @JvmStatic
         fun stopRandomProcess() {
-            val threadId = replicas[0].threadId
-            val port = replicas[0].port
+            val threadId = replicas[1].threadId
+            val port = replicas[1].port
             stopProcess(threadId);
             println("Killed RM $port")
         }
+
+
+
+
 
         @JvmStatic
         fun corruptRandomProcess() {

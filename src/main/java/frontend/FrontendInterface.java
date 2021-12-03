@@ -19,4 +19,10 @@ public interface FrontendInterface {
     Booking bookRoom(String studentId, String campus, int roomNumber, String date, String[] timeSlots);
     @WebMethod boolean cancelBooking(String studentId, String bookingId);
     @WebMethod String getAvailableTimeSlots(String date);
+
+    //RM test
+    @WebMethod String NonPrimaryRMCrash(String date);
+    @WebMethod String twoRMsCrash(String date);
+    @WebMethod String Byzantine(String date);
+    @WebMethod String ByzantineAndRMCrash(String date);
 }
